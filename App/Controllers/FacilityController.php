@@ -3,7 +3,6 @@
 namespace App\Controllers;
 
 use App\Controllers\BaseController;
-// use App\Plugins\Db\Db;
 use App\Plugins\Http\Exceptions;
 use App\Plugins\Http\Response as Status;
 use PDO;
@@ -96,11 +95,11 @@ class FacilityController extends BaseController
                 die();
             }
 
-            //Insert in Facility tag table
+            //Insert in Facility tag table            
             $query =   "INSERT INTO facility_tag (facility_id,tag_id)
-        VALUES (?,?)";
+            VALUES (?,?)";
             $bind = array($FacilityId, $TagId);
-
+            $this->db->executeQuery($query, $bind);            
 
             // Respond with 200 (OK):
             (new Status\Ok(['message' => 'Added Successfully!']))->send();

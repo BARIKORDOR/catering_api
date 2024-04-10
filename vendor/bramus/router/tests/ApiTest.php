@@ -15,15 +15,17 @@ class ApiTest extends PHPUnit_Framework_TestCase {
 
     public function testGetFacilityEndpoint(): void {
         // Send GET request to /Facility endpoint
-        $response = $this->client->request('GET', '/facility');
+        $response = $this->client->request('POST', '/facility');
 
         // Assert HTTP status code
         $this->assertEquals(200, $response->getStatusCode());
 
         // Assert response body or other properties as needed
-        $responseData = json_decode($response->getBody(), true);
-        $this->assertArrayHasKey('facility', $responseData);
-        // Add more assertions as needed
+        $responseData = json_decode($response->getBody(), true);   
+        $this->assertArrayHasKey('name', $responseData); 
+        $this->assertArrayHasKey('tag_name', $responseData);
+        $this->assertArrayHasKey('address', $responseData);
+       
     }
 
 }

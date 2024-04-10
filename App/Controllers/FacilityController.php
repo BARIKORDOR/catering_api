@@ -61,49 +61,57 @@ class FacilityController extends BaseController
      */
     public function create()
     {
+
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Get the data from the request body
             $data = json_decode(file_get_contents('php://input'), true);
+            $validatedRequest = SELF::ValidateRequest($data);
+            if (!empty($data) && $validatedRequest) {
+                // validate and clean data    
+                $facilityname = isset($data['name']) && !empty($data['name']) ? SELF::sanitizestring($data['name']) : "";
+                $tag_name =    isset($data['tag_name']) && !empty($data['tag_name']) ? SELF::sanitizestring($data['tag_name']) : "";
+                $datatime = date('Y-m-d H:i:s');
 
-            // validate and clean data    
-            $facilityname =    isset($data['name']) && !empty($data['name']) ? SELF::sanitizestring($data['name']) : "";
-            $tag_name =    isset($data['tag_name']) && !empty($data['tag_name']) ? SELF::sanitizestring($data['tag_name']) : "";
-            $datatime = date('Y-m-d H:i:s');
+                //Get Tag ID
+                $TagId = SELF::gettag($tag_name);
+                if (empty($TagId)) {
+                    (new Status\BadRequest(['message' => 'Tag id is not avaliable']))->send();
+                    die();
+                }
+                // Get the Location ID    
+                $LocationId = SELF::setlocation($data);
+                if (empty($LocationId)) {
+                    (new Status\BadRequest(['message' => 'Location Id is not avaliable']))->send();
+                    die();
+                }
 
-            //Get Tag ID
-            $TagId = SELF::gettag($tag_name);
-            if (empty($TagId)) {
-                (new Status\BadRequest(['message' => 'Tag id is not avaliable']))->send();
-                die();
-            }
-            // Get the Location ID    
-            $LocationId = SELF::setlocation($data);
-            if (empty($LocationId)) {
-                (new Status\BadRequest(['message' => 'Location Id is not avaliable']))->send();
-                die();
-            }
-
-            //Insert in Facility table
-            $query =   "INSERT INTO facility (name, creation_date, location_id)
+                //Insert in Facility table
+                $query =   "INSERT INTO facility (name, creation_date, location_id)
                     VALUES (?,?,?)";
-            $bind = array($facilityname, $datatime, $LocationId);
-            // Execute query
-            $result = $this->db->executeQuery($query, $bind);
-            $FacilityId = $this->db->getLastInsertedId();
-            if (empty($FacilityId)) {
-                (new Status\BadRequest(['message' => 'Somthing went wrong']))->send();
+                $bind = array($facilityname, $datatime, $LocationId);
+                // Execute query
+                $result = $this->db->executeQuery($query, $bind);
+                $FacilityId = $this->db->getLastInsertedId();
+                if (empty($FacilityId)) {
+                    (new Status\BadRequest(['message' => 'Somthing went wrong']))->send();
+                    die();
+                }
+
+                //Insert in Facility tag table            
+                $query =   "INSERT INTO facility_tag (facility_id,tag_id)
+                VALUES (?,?)";
+                $bind = array($FacilityId, $TagId);
+                $this->db->executeQuery($query, $bind);
+
+                // Respond with 200 (OK):
+                (new Status\Ok(['message' => 'Added Successfully!']))->send();
+            } else {
+                // Respond with 400 (BadRequest):
+                (new Status\BadRequest(['Error' => 'No data is entered in Body!']))->send();
                 die();
             }
-
-            //Insert in Facility tag table            
-            $query =   "INSERT INTO facility_tag (facility_id,tag_id)
-            VALUES (?,?)";
-            $bind = array($FacilityId, $TagId);
-            $this->db->executeQuery($query, $bind);            
-
-            // Respond with 200 (OK):
-            (new Status\Ok(['message' => 'Added Successfully!']))->send();
         } else {
+            // Respond with 400 (BadRequest):
             (new Status\BadRequest(['message' => 'Whoops! Something went wrong!']))->send();
         }
     }
@@ -137,26 +145,33 @@ class FacilityController extends BaseController
         $facilities = $this->db->getStatement()->fetchAll(PDO::FETCH_ASSOC);
         return $facilities;
     }
-
+   
     /**
      * Tag Methods
      */
 
     function gettag($tagName)
     {
-        $tag_query = "SELECT tag_id from tag where tag_name = '" . $tagName . "'";
-        $bind = array();
-        $this->db->executeQuery($tag_query, $bind);
-        $results = $this->db->getStatement()->fetch(PDO::FETCH_ASSOC);
-        // print_r( $results);die();
-        if (isset($results['tag_id']) && !empty($results['tag_id'])) {
-            return $results['tag_id'];
-        } else {
-            $query =   "INSERT INTO tag (tag_name)
+        try {
+            $tag_query = "SELECT tag_id from tag where tag_name = '" . $tagName . "'";
+            $bind = array();
+            $this->db->executeQuery($tag_query, $bind);
+            $results = $this->db->getStatement()->fetch(PDO::FETCH_ASSOC);
+            // print_r( $results);die();
+            if (isset($results['tag_id']) && !empty($results['tag_id'])) {
+                return $results['tag_id'];
+            } else {
+                $query =   "INSERT INTO tag (tag_name)
                      VALUES (?)";
-            $bind = array($tagName);
-            $this->db->executeQuery($query, $bind);
-            return $this->db->getLastInsertedId();
+                $bind = array($tagName);
+                $this->db->executeQuery($query, $bind);
+                return $this->db->getLastInsertedId();
+            }
+        } catch (PDOException $e) {
+            // GetMessage to throw
+            $ErrorMessage = $e->getMessage(); // Get the error message from the exception
+            // Log the error or return it to the client   
+            (new Status\BadRequest(['Error' => $ErrorMessage]))->send();
         }
     }
     /**
@@ -186,10 +201,54 @@ class FacilityController extends BaseController
             $this->db->executeQuery($query, $bind);
             return $this->db->getLastInsertedId();
         } catch (PDOException $e) {
-            // Just throw it:
+            // GetMessage to throw
             $ErrorMessage = $e->getMessage(); // Get the error message from the exception
             // Log the error or return it to the client   
-            (new Status\BadRequest(['message' => $ErrorMessage]))->send();
+            (new Status\BadRequest(['Error' => $ErrorMessage]))->send();
+        }
+    }
+     /**
+     * Validate Request
+     */
+    function  ValidateRequest($data)
+    {
+        $error = [];
+        $facilityname = isset($data['name']) && empty($data['name']) ? "Facilty name is required" : "";
+        $tag = isset($data['tag']) && empty($data['tag']) ? "Tag name is required" : "";
+        $address = isset($data['address']) && empty($data['address']) ? "Address name is required" : "";
+        $city = isset($data['city']) && empty($data['city']) ? "City name is required" : "";
+        $zip_code = isset($data['zip_code']) && empty($data['zip_code']) ? "Zip code is required" : "";
+        $phone_number = isset($data['phone_number']) && empty($data['phone_number']) ? "Phone number is required" : "";
+        $country_code = isset($data['country_code']) && empty($data['country_code']) ? "Country code is required" : "";
+
+        // Assign error messages to the $error array if fields are empty
+        if (!empty($facilityname)) {
+            $error['name'] = $facilityname;
+        }
+        if (!empty($tag)) {
+            $error['tag'] = $tag;
+        }
+        if (!empty($address)) {
+            $error['address'] = $address;
+        }
+        if (!empty($city)) {
+            $error['city'] = $city;
+        }
+        if (!empty($zip_code)) {
+            $error['zip_code'] = $zip_code;
+        }
+        if (!empty($phone_number)) {
+            $error['phone_number'] = $phone_number;
+        }
+        if (!empty($country_code)) {
+            $error['country_code'] = $country_code;
+        }
+        if (count($error) > 0) {
+            // Respond with 400 (BadRequest):
+            (new Status\BadRequest(['message' =>  $error]))->send();
+            die();
+        } else {
+            return true;
         }
     }
 }

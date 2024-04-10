@@ -16,7 +16,7 @@ class BaseController extends Injectable {
         $header = apache_request_headers();
         $API_KEY = (isset($header['api-key']) && !empty($header['api-key'])? $header['api-key'] : "");      
         if ($API_KEY != $apikey) {
-            (new Status\Ok(['error' => 'Invalid request']))->send();
+            (new Status\BadRequest(['error' => 'Invalid request']))->send();
             die();
         }        
     }

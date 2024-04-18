@@ -61,7 +61,6 @@ class FacilityController extends BaseController
      */
     public function create()
     {
-
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Get the data from the request body
             $data = json_decode(file_get_contents('php://input'), true);
@@ -85,7 +84,7 @@ class FacilityController extends BaseController
                     exit();
                 }
 
-                //Insert in Facility table
+                //Insert in Facility table 
                 $query =   "INSERT INTO facility (name, creation_date, location_id)
                     VALUES (?,?,?)";
                 $bind = array($facilityname, $datatime, $LocationId);

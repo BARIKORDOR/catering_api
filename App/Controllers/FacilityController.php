@@ -28,7 +28,7 @@ class FacilityController extends BaseController
         $cursor = isset($_REQUEST['cursor']) ? intval($_REQUEST['cursor']) : null;
         if ($cursor !== null  && !is_int($cursor)) {
             (new Status\BadRequest(['message' => 'Invalid Cursor']))->send();
-            die();
+            exit();
         }
 
         // Validate and sanitize limit
@@ -66,7 +66,7 @@ class FacilityController extends BaseController
             // Get the data from the request body
             $data = json_decode(file_get_contents('php://input'), true);
             $validatedRequest = SELF::ValidateRequest($data);
-            if (!empty($data) && $validatedRequest) {
+            if ($validatedRequest) {
                 // validate and clean data    
                 $facilityname = isset($data['name']) && !empty($data['name']) ? SELF::sanitizestring($data['name']) : "";
                 $tag_name =    isset($data['tag_name']) && !empty($data['tag_name']) ? SELF::sanitizestring($data['tag_name']) : "";
@@ -76,13 +76,13 @@ class FacilityController extends BaseController
                 $TagId = SELF::gettag($tag_name);
                 if (empty($TagId)) {
                     (new Status\BadRequest(['message' => 'Tag id is not avaliable']))->send();
-                    die();
+                    exit();
                 }
                 // Get the Location ID    
                 $LocationId = SELF::setlocation($data);
                 if (empty($LocationId)) {
                     (new Status\BadRequest(['message' => 'Location Id is not avaliable']))->send();
-                    die();
+                    exit();
                 }
 
                 //Insert in Facility table
@@ -94,7 +94,7 @@ class FacilityController extends BaseController
                 $FacilityId = $this->db->getLastInsertedId();
                 if (empty($FacilityId)) {
                     (new Status\BadRequest(['message' => 'Somthing went wrong']))->send();
-                    die();
+                    exit();
                 }
 
                 //Insert in Facility tag table            
@@ -105,11 +105,7 @@ class FacilityController extends BaseController
 
                 // Respond with 200 (OK):
                 (new Status\Ok(['message' => 'Added Successfully!']))->send();
-            } else {
-                // Respond with 400 (BadRequest):
-                (new Status\BadRequest(['Error' => 'No data is entered in Body!']))->send();
-                die();
-            }
+            } 
         } else {
             // Respond with 400 (BadRequest):
             (new Status\BadRequest(['message' => 'Whoops! Something went wrong!']))->send();
@@ -157,7 +153,7 @@ class FacilityController extends BaseController
             $bind = array();
             $this->db->executeQuery($tag_query, $bind);
             $results = $this->db->getStatement()->fetch(PDO::FETCH_ASSOC);
-            // print_r( $results);die();
+            // print_r( $results)   exit();
             if (isset($results['tag_id']) && !empty($results['tag_id'])) {
                 return $results['tag_id'];
             } else {
@@ -212,43 +208,40 @@ class FacilityController extends BaseController
      */
     function  ValidateRequest($data)
     {
-        $error = [];
-        $facilityname = isset($data['name']) && empty($data['name']) ? "Facilty name is required" : "";
-        $tag = isset($data['tag']) && empty($data['tag']) ? "Tag name is required" : "";
-        $address = isset($data['address']) && empty($data['address']) ? "Address name is required" : "";
-        $city = isset($data['city']) && empty($data['city']) ? "City name is required" : "";
-        $zip_code = isset($data['zip_code']) && empty($data['zip_code']) ? "Zip code is required" : "";
-        $phone_number = isset($data['phone_number']) && empty($data['phone_number']) ? "Phone number is required" : "";
-        $country_code = isset($data['country_code']) && empty($data['country_code']) ? "Country code is required" : "";
+        $errors = [];
 
-        // Assign error messages to the $error array if fields are empty
-        if (!empty($facilityname)) {
-            $error['name'] = $facilityname;
+        if (!isset($data['name']) || empty($data['name'])) {
+            $errors['name'] = "Facility name is required";
         }
-        if (!empty($tag)) {
-            $error['tag'] = $tag;
+
+        if (!isset($data['tag_name']) || empty($data['tag_name'])) {
+            $errors['tag_name'] = "Tag name is required";
         }
-        if (!empty($address)) {
-            $error['address'] = $address;
+
+        if (!isset($data['address']) || empty($data['address'])) {
+            $errors['address'] = "Address is required";
         }
-        if (!empty($city)) {
-            $error['city'] = $city;
+
+        if (!isset($data['city']) || empty($data['city'])) {
+            $errors['city'] = "City name is required";
         }
-        if (!empty($zip_code)) {
-            $error['zip_code'] = $zip_code;
+
+        if (!isset($data['zip_code']) || empty($data['zip_code'])) {
+            $errors['zip_code'] = "Zip code is required";
         }
-        if (!empty($phone_number)) {
-            $error['phone_number'] = $phone_number;
+
+        if (!isset($data['phone_number']) || empty($data['phone_number'])) {
+            $errors['phone_number'] = "Phone number is required";
         }
-        if (!empty($country_code)) {
-            $error['country_code'] = $country_code;
+
+        if (!isset($data['country_code']) || empty($data['country_code'])) {
+            $errors['country_code'] = "Country code is required";
         }
-        if (count($error) > 0) {
-            // Respond with 400 (BadRequest):
-            (new Status\BadRequest(['message' =>  $error]))->send();
-            die();
-        } else {
-            return true;
+
+        if (!empty($errors)) {
+            (new Status\BadRequest(['message' => $errors]))->send();
+            exit(); 
         }
+         return true;
     }
 }

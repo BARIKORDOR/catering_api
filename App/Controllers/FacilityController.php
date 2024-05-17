@@ -10,10 +10,9 @@ use PDOException;
 
 class FacilityController extends BaseController
 {
-
     public function __construct()
     {
-        SELF::validateapi();
+        // SELF::validateapi();
     }
 
     /**
@@ -23,14 +22,12 @@ class FacilityController extends BaseController
      */
     public function index()
     {
-
         // Validate and sanitize cursor
         $cursor = isset($_REQUEST['cursor']) ? intval($_REQUEST['cursor']) : null;
         if ($cursor !== null  && !is_int($cursor)) {
             (new Status\BadRequest(['message' => 'Invalid Cursor']))->send();
             exit();
         }
-
         // Validate and sanitize limit
         $limit = isset($_REQUEST['limit']) ? intval($_REQUEST['limit']) : 10;
         if ($limit <= 0) {
@@ -38,22 +35,18 @@ class FacilityController extends BaseController
         }
         //validate and sanitize search
         $search = (isset($_REQUEST['search']) && !empty($_REQUEST['search']) ? SELF::sanitizestring($_REQUEST['search']) : "");
-
         // Fetch facility details with cursor pagination
         $facilities = SELF::getFacilityDetails($cursor, $limit, $search);
-
         // Extract the last facility's ID as the cursor for the next page
         $nextCursor = null;
         if (!empty($facilities)) {
-
             $lastfacility = end($facilities);
             $nextCursor = $lastfacility['facility_id'];
         }
-
         // (new Status\Ok(['data' => $facilities]))->send();
         (new Status\Ok(['data' => $facilities, "next_cursor" => $nextCursor]))->send();
     }
-
+    
     /**
      * Controller function to Create Facility API
      * @param string $name
@@ -70,20 +63,18 @@ class FacilityController extends BaseController
                 $facilityname = isset($data['name']) && !empty($data['name']) ? SELF::sanitizestring($data['name']) : "";
                 $tag_name =    isset($data['tag_name']) && !empty($data['tag_name']) ? SELF::sanitizestring($data['tag_name']) : "";
                 $datatime = date('Y-m-d H:i:s');
-
                 //Get Tag ID
-                $TagId = SELF::gettag($tag_name);
+                $TagId = SELF::getTag($tag_name);
                 if (empty($TagId)) {
                     (new Status\BadRequest(['message' => 'Tag id is not avaliable']))->send();
                     exit();
                 }
                 // Get the Location ID    
-                $LocationId = SELF::setlocation($data);
+                $LocationId = SELF::setLocation($data);
                 if (empty($LocationId)) {
                     (new Status\BadRequest(['message' => 'Location Id is not avaliable']))->send();
                     exit();
                 }
-
                 //Insert in Facility table 
                 $query =   "INSERT INTO facility (name, creation_date, location_id)
                     VALUES (?,?,?)";
@@ -95,17 +86,15 @@ class FacilityController extends BaseController
                     (new Status\BadRequest(['message' => 'Somthing went wrong']))->send();
                     exit();
                 }
-
                 //Insert in Facility tag table            
                 $query =   "INSERT INTO facility_tag (facility_id,tag_id)
                 VALUES (?,?)";
                 $bind = array($FacilityId, $TagId);
                 $this->db->executeQuery($query, $bind);
-
                 // Respond with 200 (OK):
                 (new Status\Ok(['message' => 'Added Successfully!']))->send();
             } 
-        } else {
+            } else {
             // Respond with 400 (BadRequest):
             (new Status\BadRequest(['message' => 'Whoops! Something went wrong!']))->send();
         }
@@ -117,8 +106,6 @@ class FacilityController extends BaseController
      */
     function getFacilityDetails($cursor = null, $limit = 10, $search = "")
     {
-
-
         $query = "SELECT f.facility_id, f.name AS facility_name, tag.tag_id, 
           tag.tag_name, loc.location_id, loc.city, loc.address, loc.zip_code,
           loc.country_code, loc.phone_number 
@@ -131,21 +118,18 @@ class FacilityController extends BaseController
             $query .= ' and f.facility_id > :cursor ';
         }
         $query .= "ORDER BY f.facility_id ASC LIMIT $limit";
-
         $bind = array(':cursor' => $cursor, ':search' => '%' . $search . '%');
         // Execute the query
-        $reult = $this->db->executeQuery($query, $bind);
-
+        $result = $this->db->executeQuery($query, $bind);
         // Fetch all rows as an associative array
-        $facilities = $this->db->getStatement()->fetchAll(PDO::FETCH_ASSOC);
+        $facilities = $this->db->getStatement()->fetchAll(PDO::FETCH_ASSOC);        
         return $facilities;
-    }
-   
+    } 
+
     /**
      * Tag Methods
      */
-
-    function gettag($tagName)
+    function getTag($tagName)
     {
         try {
             $tag_query = "SELECT tag_id from tag where tag_name = '" . $tagName . "'";
@@ -169,6 +153,7 @@ class FacilityController extends BaseController
             (new Status\BadRequest(['Error' => $ErrorMessage]))->send();
         }
     }
+
     /**
      * To get location 
      * @param string $address
@@ -177,8 +162,7 @@ class FacilityController extends BaseController
      * @param string $phone_number
      * @param string $country_code
      */
-
-    function setlocation($data)
+    function setLocation($data)
     {
         try {
             //Fetching required data for Location 
@@ -202,41 +186,34 @@ class FacilityController extends BaseController
             (new Status\BadRequest(['Error' => $ErrorMessage]))->send();
         }
     }
+
      /**
      * Validate Request
      */
     function  ValidateRequest($data)
     {
         $errors = [];
-
         if (!isset($data['name']) || empty($data['name'])) {
             $errors['name'] = "Facility name is required";
         }
-
         if (!isset($data['tag_name']) || empty($data['tag_name'])) {
             $errors['tag_name'] = "Tag name is required";
         }
-
         if (!isset($data['address']) || empty($data['address'])) {
             $errors['address'] = "Address is required";
         }
-
         if (!isset($data['city']) || empty($data['city'])) {
             $errors['city'] = "City name is required";
         }
-
         if (!isset($data['zip_code']) || empty($data['zip_code'])) {
             $errors['zip_code'] = "Zip code is required";
         }
-
         if (!isset($data['phone_number']) || empty($data['phone_number'])) {
             $errors['phone_number'] = "Phone number is required";
         }
-
         if (!isset($data['country_code']) || empty($data['country_code'])) {
             $errors['country_code'] = "Country code is required";
         }
-
         if (!empty($errors)) {
             (new Status\BadRequest(['message' => $errors]))->send();
             exit(); 

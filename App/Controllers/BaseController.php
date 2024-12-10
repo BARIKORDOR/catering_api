@@ -20,14 +20,14 @@ class BaseController extends Injectable {
             die();
         }        
     }
+    
     /**
      * sanitize input string for prevention of xss attack
      */
-    public function sanitizestring($input)
-    {        
+    public function sanitizeString($input)
+    {
         return  htmlspecialchars($input, ENT_QUOTES, 'UTF-8');
     }
-
 
     
 }

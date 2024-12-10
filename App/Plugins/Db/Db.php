@@ -48,9 +48,10 @@ class Db implements IDb {
      * @return bool
      */
     public function executeQuery(string $query, array $bind = []): bool {
-        $this->stmt = $this->connection->prepare($query);
-        if ($bind) {
-            return $this->stmt->execute($bind);
+        $this->connection->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
+        $this->stmt = $this->connection->prepare($query);   
+        if ($bind) {        
+            $this->stmt->execute($bind);       
         }
         return $this->stmt->execute();
     }
@@ -95,7 +96,7 @@ class Db implements IDb {
      * Function to return the last executed statement if any
      * @return null|PDOStatement
      */
-    public function getStatement(): ?PDOStatement {
+    public function getStatement(): ?PDOStatement {      
         return $this->stmt;
     }
 }

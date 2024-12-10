@@ -2,7 +2,7 @@
 
 return [
     'db' => [
-        'host' => 'localhost',
+        'host' => 'localhost:3307',
         'database' => 'catering_api',
         'username' => 'root',
         'password' => '',
